@@ -1,0 +1,53 @@
+version: '3.3'
+services:
+  keycloak:
+    image: bitnami/keycloak:20.0.5
+    restart: unless-stopped
+    ports:
+      - "8070:8080"
+    environment:
+      - KEYCLOAK_ADMIN_USER=${KEYCLOAK_USER}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_PASSWORD}
+      - KEYCLOAK_DATABASE_NAME=${KEYCLOAK_DATABASE_NAME}
+      - KEYCLOAK_DATABASE_USER=${KEYCLOAK_DATABASE_USER}
+      - KEYCLOAK_DATABASE_PASSWORD=${KEYCLOAK_DATABASE_PASSWORD}
+      - KEYCLOAK_DATABASE_HOST=keycloakdb
+      - KEYCLOAK_DATABASE_VENDOR=postgresql
+      - KEYCLOAK_DATABASE_SCHEMA=public
+      - KEYCLOAK_EXTRA_ARGS=-Dkeycloak.import=/tmp/realm-export.json
+    volumes:
+      - ./keycloak_data/realms/realm-export.json:/tmp/realm-export.json
+    networks:
+      internal:
+    depends_on:
+      - keycloakdb
+
+  keycloakdb:
+    image: postgres:15.2-bullseye
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${KEYCLOAK_DATABASE_USER}
+      - POSTGRES_PASSWORD=${KEYCLOAK_DATABASE_PASSWORD}
+      - POSTGRES_DB=${KEYCLOAK_DATABASE_NAME}
+    volumes:
+      - keycloak-postgres:/var/lib/postgresql/data
+    networks:
+      internal:
+
+  redis:
+    image: redis:7.0.10-bullseye
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    entrypoint: redis-server --appendonly yes --requirepass $REDIS_PASSWORD --maxmemory 512mb --maxmemory-policy allkeys-lru
+    networks:
+      - redis_network
+    volumes:
+      - ./redis_data:/data
+
+volumes:
+  keycloak-postgres:
+
+networks:
+  internal:
+  redis_network:
